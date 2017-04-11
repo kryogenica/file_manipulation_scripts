@@ -1,0 +1,10 @@
+#!/bin/csh -f
+EMAN2
+#LOOPS THROUGH EACH MRCS FILE CONVERTING INTO All_Particles.spi THIS WILL ADD ALL PARTICLES TO THE SPI FILE.
+foreach file (*.mrcs)
+	set b=$file:r
+	e2proc2d.py $file All_Particles.spi
+end
+
+
+
