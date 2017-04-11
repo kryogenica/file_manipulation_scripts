@@ -1,2 +1,2 @@
 # file_manipulation_scripts
-Various
+Diferent scripts used in file manipulation adn processing.
