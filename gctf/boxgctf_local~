@@ -1,0 +1,76 @@
+#!/bin/csh -f
+rm which_to_keep.txt
+rksystem2
+#DO INDIVIDUAL PARTICLE GCTF (BOXSIZE VALUE WILL CHANGE FOR NEXT GCTF CALCULATION.
+/opt/EM_suite/Gctf_v0.50/bin/Gctf-v0.50_sm_20_cu6.5_x86_64 --apix 1.54 --kV 200 --cs 2.0 --defL 10000 --defH 50000 --astm 500 --bfac 50 --resL 60 --defS 100 --ac 0.1 --boxsize 512 --do_local_refine 1 --boxsuffix .box *.mrc
+
+#LOOP THROUGH EACH LOG FILE THAT CONTAINS INFORMATION ABOUT ITS RESPECTIVE MICROGRAPH.
+foreach file (*gctf.log)
+	set b=$file:r
+	awk '/Defocus_U/ {p=1;next}p' $b.log > $b.tmp && mv $b.tmp $b.fuse 	#DELETES EVERYTHING BEFORE "Defocus_U" AND INCLUDING THE SAME LINE.
+	awk -F 'Final' '{print $1}' $b.fuse > $b.tmp && mv $b.tmp $b.fuse 	#DELETES "Final" and everything after within the same line.
+	sed -i '2,$d' $b.fuse #Deletes from second line to end of file.
+	awk '{dif=sqrt(($4)^2)}END{print dif}' $b.fuse > $b.tmp && mv $b.tmp $b.fuse #Extracts the Absolute CCC value and records it into $b.fuse file.
+end
+rename 's/\.ctf$/_gctf.512/' * 	#change extension of files so the next gctf run does not over-write them with new info. 
+rename 's/\_gctf.log$/_gctf.5/' * #change extension of files so the next gctf run does not over-write them with new info.
+
+mv micrographs_all_gctf.star micrographs_all_gctf.5 #change extension of files so the next gctf run does not over-write them.
+
+#Follows same process as above strating FROM HERE...
+/opt/EM_suite/Gctf_v0.50/bin/Gctf-v0.50_sm_20_cu6.5_x86_64 --apix 1.54 --kV 200 --cs 2.0 --defL 10000 --defH 50000 --astm 500 --bfac 50 --resL 60 --defS 100 --ac 0.1 --boxsize 256 --do_local_refine 1 --boxsuffix .box *.mrc
+#(notice BOXSZIE value changed from 512 to 256).
+
+foreach file (*gctf.log)
+        set b=$file:r
+        awk '/Defocus_U/ {p=1;next}p' $b.log > $b.tmp && mv $b.tmp $b.suse
+        awk -F 'Final' '{print $1}' $b.suse > $b.tmp && mv $b.tmp $b.suse
+        sed -i '2,$d' $b.suse
+        awk '{dif=sqrt(($4)^2)}END{print dif}' $b.suse > $b.tmp && mv $b.tmp $b.suse
+end
+rename 's/\.ctf$/_gctf.256/' *
+rename 's/\_gctf.log$/_gctf.2/' *
+
+mv micrographs_all_gctf.star micrographs_all_gctf.2
+#... UP TO HERE
+
+#THE FOLLOWING CODE CONDUCTS THE CRITERIA CLASSIFICATION. 
+#It leaves the ctf file that has the highest CCC value between the 256 and 512.
+set i=17 		#This number is the number of lines of the header of micrographs_all_gctf.star .
+foreach file (*.fuse) 	#Looks for files recently created with extension .fuse and used to search for .suse extension files too.
+	set b=$file
+	set name=$file:r #Removes extension
+	#set el_fin=`echo "$b" | tail -c 5` 
+		
+	
+	#if ( $el_fin == "fuse" ) then
+	set value1=`head -n 1 $name.fuse | xargs echo ` 	#Sets value1 to the CCC value of the 512 caclculation.
+	set value2=`head -n 1 $name.suse | xargs echo ` 	#Sets value2 to the CCC value of the 256 caclculation.
+	set var = `echo "$value1 $value2" | awk '{print ($2 >= $1)}'` #Compares CCC values 1 if 256 is bigger, 0 otherwise.
+		
+	if ( "$var" == 0 ) then 	#Check to see if value1 (512) is bigger.
+		mv $name.512 $name.ctf 	#if 512 is bigger its ctf file is kept.
+		awk "FNR==$i {print}" micrographs_all_gctf.5 >> which_to_keep.txt #keep info relate to this micrograph.
+		mv $name.5 $name.log 	#if 512 is bigger its log file is kept
+	else
+		mv $name.256 $name.ctf 	#if 256 is bigger (or equal) the file is kept by changing its extension back to ctf.
+		awk "FNR==$i {print}" micrographs_all_gctf.2 >> which_to_keep.txt #keep info relate to this micrograph.
+		mv $name.2 $name.log 	#if 256 is bigger (or equal) its log file is kept.
+	endif
+	@ i++	#add one to i to move one line down on micrographs_all_gctf.# on next iteration.
+	#endif
+	
+	
+end #end file loop.
+rename 's/\_gctf.ctf$/.ctf/' *.ctf #change file back to its origianl name without the added rootname.
+cat micrographs_all_gctf.header which_to_keep.txt > micrographs_all_gctf.star create #Recompiels the names of the files that have passed the given criteria.
+
+rm *.256
+rm *.512
+rm *.2
+rm *.5
+rm *.suse
+rm *.fuse
+echo "!!!DONE!!!"
+
+

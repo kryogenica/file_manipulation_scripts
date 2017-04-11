@@ -1,0 +1,20 @@
+is_continue == false
+Input micrographs: == *.mrc
+Output STAR file:  == selected_micrographs_ctf.star
+Picking rootname:  == automatch
+Lowpass filter (A) == 0
+Scale for micrographs: == 0.5
+Scale for CTF image: == 1
+Sigma contrast: == 3
+White value: == 0
+Black value: == 0
+Blue<>red color particles? == No
+MetaDataLabel for color: == rlnParticleSelectZScore
+STAR file with color label:  == 
+Blue value:  == 0
+Red value:  == 2
+Submit to queue? == No
+Queue name:  == openmpi
+Queue submit command: == qsub
+Standard submission script: == /opt/EM_suite/relion-1.4/bin/qsub.csh
+Additional arguments: == 

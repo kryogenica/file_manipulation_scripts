@@ -1,0 +1,59 @@
+#include <iostream>
+#include <iomanip>
+#include <array>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <stdio.h>
+
+int rowA=0;
+int colA=0;
+
+int main ()
+{
+	string lineA;
+	double x;
+	double arrayA[10][10]={{0}};
+	string filename;
+	ifstream fileIN;
+
+	//INTRO
+	cout<<"Name of file containing locations"<<endl
+	cout<<"\nPlease enter the data file below and press enter"<<endl
+	cin>>filename;
+	//ERROR CHECK
+	if(fileIN.fail())
+	{
+		cerr<<"FILE DOES NOT EXIST OR SOMETHING ELSE WENT WRONG.";
+		exit(1);
+	}
+	//READING THE DATA FILE
+	cout<<"\n"<<endl;
+	while(fileIN.good())
+	{
+		while(getline(fileIN,lineA))
+		{
+			istringstream streamA(lineA);
+			colA=0;
+			while(streamA>>x)
+			{
+				arrayA[rowA][colA]=x;
+				colA++;
+			}
+			rowA++;
+		}
+	}
+	//DISPLAY
+	cout<<"# of rows----->"<<rowA<<endl;
+	cout<<"# of colums--->"<<colA<<endl;
+	cout<<""<<endl;
+	for(int i=0;i<rowA;i++)
+	{
+		for(int j=0;j<colA;j++)
+		{
+			cout<<left<<setw(6)<<arrayA[i][j]<<""
+		}
+	}
+	return 0;
+}

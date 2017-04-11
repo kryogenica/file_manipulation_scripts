@@ -1,0 +1,85 @@
+#!/bin/csh -f
+#File to be used after processing with gcft.
+#YOU CAN CHANGE THE Z SCORE VALUES INSIDE THE "" OF THE echo FUNCTION BELOW.
+
+set lower = `echo "-1.2" | awk '{print $1}'` 	#Lower boundary value for z-CCC score
+set upper = `echo "1.2" | awk '{print $1}'`	#Upper boundary value for z-CCC score
+
+
+
+#Remove any files that have been created previously.
+rm All_values.data 
+rm Name_of_files_in_order.txt
+rm Files_to_delete_ccc_criteria.txt
+#Creates a files containing information about each MIcrograph.
+foreach file (*gctf.log) #Loop through all log files.
+        set b=$file:r #extract name without root.
+        awk '/Defocus_U/ {p=1;next}p' $b.log > $b.tmp && mv $b.tmp $b.dat #delete everything before the string "Defocus_U" appears and including its line. 
+        awk -F 'Final' '{print $1}' $b.dat > $b.tmp && mv $b.tmp $b.dat #delete word "Final".
+        sed -i 's/^ *//' $b.dat #delete all initial spaces from first line.
+	sed -i 's/Resolution limit estimated by EPA: RES_LIMIT //' $b.dat #deletes a string.
+	sed -i 's/Estimated Bfactor: B_FACTOR  //' $b.dat #deletes a string.
+	set RESOLUTION=`head -3 $b.dat | tail -1 | xargs echo` #sets value of Resolution limit to variable RESOLUTION.
+	set B_FACTOR=`head -4 $b.dat | tail -1 | xargs echo` #sets value of Bfactor to variable B_FACTOR.
+	sed -i '2,$d' $b.dat #delete everything from line 2 to end of file.
+	awk -F, '{$(NF+1)=++i;}1' OFS="  $RESOLUTION" $b.dat > $b.tmp && mv $b.tmp $b.dat #Creates new column to add value.
+	awk -F, '{$(NF+1)=++i;}1' OFS="  $B_FACTOR" $b.dat > $b.tmp && mv $b.tmp $b.dat #Creates new column to add value.
+end
+
+set j=0 #Value used immediately below to count how many micrographs are being processed.
+#Extracts the information of the files created above and apends them into a single file named All_values.data
+#Also records the name of all of the Micrographs in the current directory.
+foreach file (*.dat)
+        set b=$file
+        head -1 $b >> All_values.data #Records all values of each micrograph.
+	echo "$b" >> Name_of_files_in_order.txt  #Records all names of the micrographs.
+	@ j++
+end
+
+awk -F"**" '$1=$1' OFS="\t" All_values.data #Tabulates the information into neat clounms 
+
+set avrg_ccc=`awk -v N=4 '{ sum += $N } END { if (NR > 0) print sum / NR }' All_values.data | xargs echo` #Calculates the Average of the Column containg CCC Values.
+
+set i=1
+set column='$4'
+set ccc_minus_avrg=0
+
+#Computation of standard deviation of CCC Column
+while ( $i <= $j )
+	
+	set ccc=`awk "FNR==$i {print $column}" All_values.data | xargs echo` #extracts ccc value from respective line.
+	
+	
+        set ccc_minus_avrg = `echo "$ccc $avrg_ccc $ccc_minus_avrg" | awk '{print (($1 - $2)^2)+$3}'` #Adds up all ccc values.
+	
+	
+	set i = `expr $i + 1`
+	
+	
+end
+set ccc_minus_avrg = `echo "$ccc_minus_avrg $j" | awk '{print $1/$2}'` #Divides by the number of all micrographs (j).
+set ccc_minus_avrg = `echo "$ccc_minus_avrg" | awk '{print sqrt($1)}'` #This is where you get the ACTUAL standard deviation.
+set stdev = $ccc_minus_avrg #Transfer value to a new variable.
+#End of standard deviation calculation.
+
+#Application of criteria. In this case the Z score. 
+set k=1
+while ( $k <= $j )
+        set ccc = `awk "FNR==$k {print $column}" All_values.data | xargs echo` #Extracts the CCC value of the k-th micrograph
+        
+	set dif = `echo "$ccc $avrg_ccc $stdev" | awk '{print ($1 - $2)/$3}'` #Subtract the CCC from the average and divides by stdev to obatain Z-SCORE
+        
+	set var1 = `echo "$lower $dif" | awk '{print ($2 < $1)}'` #var1 if the value dif is lower than -1.2 (lower) 0 otherwise
+        
+	set var2 = `echo "$upper $dif" | awk '{print ($2 > $1)}'` #var2 if the value dif is bigger than 1.2 (upper) 0 otherwise
+	
+	if ( "$var1" == 1 ) then
+		set delete = `awk "FNR==$k {print}" Name_of_files_in_order.txt | xargs echo` #Saves the name of micrograph if lower than -1.2
+		echo "$delete">>Files_to_delete_ccc_criteria.txt
+	else if ( "$var2" == 1 ) then
+		set delete = `awk "FNR==$k {print}" Name_of_files_in_order.txt | xargs echo` #Saves the name of micrograph if bigger than 1.2
+                echo "$delete">>Files_to_delete_ccc_criteria.txt
+	endif
+	@ k++	#Adds one to k.
+end
+#ALL THE NAME FILES SAVED ARE SUPPOSED TO BE DELETED YOU CAN DO THAT WITH THE SCRIPT 

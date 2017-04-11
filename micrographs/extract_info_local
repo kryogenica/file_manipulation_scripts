@@ -1,0 +1,76 @@
+#!/bin/csh -f
+rm All_values.data
+rm Name_of_files_in_order.txt
+rm Files_to_delete_ccc_criteria.txt
+foreach file (*gctf.log)
+        set b=$file:r
+        awk '/Defocus_U/ {p=1;next}p' $b.log > $b.tmp && mv $b.tmp $b.dat
+        awk -F 'Final' '{print $1}' $b.dat > $b.tmp && mv $b.tmp $b.dat
+        sed -i 's/^ *//' $b.dat
+	sed -i 's/Resolution limit estimated by EPA: RES_LIMIT //' $b.dat
+	sed -i 's/Estimated Bfactor: B_FACTOR  //' $b.dat
+	set RESOLUTION=`head -3 $b.dat | tail -1 | xargs echo`
+	set B_FACTOR=`head -4 $b.dat | tail -1 | xargs echo`
+	sed -i '2,$d' $b.dat
+	awk -F, '{$(NF+1)=++i;}1' OFS="  $RESOLUTION" $b.dat > $b.tmp && mv $b.tmp $b.dat #Creates new column to add value
+	awk -F, '{$(NF+1)=++i;}1' OFS="  $B_FACTOR" $b.dat > $b.tmp && mv $b.tmp $b.dat #Creates new column to add value
+end
+
+set j=0
+
+foreach file (*.dat)
+        set b=$file
+        head -1 $b >> All_values.data
+	echo "$b" >> Name_of_files_in_order.txt
+	@ j++
+end
+
+awk -F"**" '$1=$1' OFS="\t" All_values.data
+
+set avrg_ccc=`awk -v N=4 '{ sum += $N } END { if (NR > 0) print sum / NR }' All_values.data | xargs echo` #Calculates the Average of the Column containg CCC Values.
+
+set i=1
+set column='$4'
+set ccc_minus_avrg=0
+
+#Compute standard deviation on CCC Column
+while ( $i <= $j )
+	
+	set ccc=`awk "FNR==$i {print $column}" All_values.data | xargs echo`
+	
+	#@ ccc_minus_avrg = $((((($ccc)-($avrg_ccc)))^2)+($ccc_minus_avrg))	
+        set ccc_minus_avrg = `echo "$ccc $avrg_ccc $ccc_minus_avrg" | awk '{print (($1 - $2)^2)+$3}'`
+	
+	
+	set i = `expr $i + 1`
+	
+	
+end
+set ccc_minus_avrg = `echo "$ccc_minus_avrg $j" | awk '{print $1/$2}'`
+set ccc_minus_avrg = `echo "$ccc_minus_avrg" | awk '{print sqrt($1)}'`
+set stdev = $ccc_minus_avrg
+#Finished calculating standard deviation
+set k=1
+set lower = `echo "-1.2" | awk '{print $1}'`
+set upper = `echo "1.2" | awk '{print $1}'`
+
+while ( $k <= $j )
+        set ccc = `awk "FNR==$k {print $column}" All_values.data | xargs echo`
+        
+	set dif = `echo "$ccc $avrg_ccc $stdev" | awk '{print ($1 - $2)/$3}'`
+        
+	set var1 = `echo "$lower $dif" | awk '{print ($2 < $1)}'`
+        
+	set var2 = `echo "$upper $dif" | awk '{print ($2 > $1)}'`
+	
+	if ( "$var1" == 1 ) then
+		set delete = `awk "FNR==$k {print}" Name_of_files_in_order.txt | xargs echo`
+		echo "$delete">>Files_to_delete_ccc_criteria.txt
+	else if ( "$var2" == 1 ) then
+		set delete = `awk "FNR==$k {print}" Name_of_files_in_order.txt | xargs echo`
+                echo "$delete">>Files_to_delete_ccc_criteria.txt
+	endif
+	@ k++
+end
+
+

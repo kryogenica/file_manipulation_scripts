@@ -1,0 +1,27 @@
+#! /bin/csh -f
+
+foreach file ([0-9]*.[0-9]*)
+	head -1  $file/phenix.get_cc_mtz_pdb_allVSall_cc_values.log >> AllvsAll.num 
+end
+
+foreach file ([0-9]*.[0-9]*)
+	head -1 $file/phenix.get_cc_mtz_pdb_allVSremain_cc_values.log >> AllvsRemain.num 
+end
+
+foreach file ([0-9]*.[0-9]*)
+	head -1 $file/phenix.get_cc_mtz_pdb_allVSremoved_cc_values.log >> AllvsRemoved.num 
+end
+
+foreach file ([0-9]*.[0-9]*)
+	head -1 $file/phenix.get_cc_mtz_pdb_remainVSall_cc_values.log >> RemainvsAll.num 
+end
+
+foreach file ([0-9]*.[0-9]*)
+	head -1 $file/phenix.get_cc_mtz_pdb_remainVSremain_cc_values.log >> RemainvsRemain.num 
+end
+
+foreach file ([0-9]*.[0-9]*)
+	head -1 $file/phenix.get_cc_mtz_pdb_remainVSremoved_cc_values.log >> RemainvsRemoved.num 
+end
+
+

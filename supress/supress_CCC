@@ -1,0 +1,26 @@
+#!/bin/csh -f
+#Uncompress any zip files
+gunzip *.gz
+#If no files are found 
+#CREATES A FOLDER THAT WILL CONTAIN THE LINK OR FILES OF THE MICROGRAPHS THAT DID NOT PASS THE CRITERIA TEST.
+mkdir NO_BUENO_MICRO
+#LOOK FOR THE FILE THAT CONTAINS THE NAMES OF MICROGRAPHS TO BE DELETED/MOVED AND DETERMINES THE NUMBER OF FILES TO BE DELETED
+set j = `wc -l Files_to_delete_ccc_criteria.txt | grep -Eo '[0-9]*' `
+set i=1
+echo "Number of files to be deleted are:"
+echo "$j"
+#Loop looks for the .mrc file and moves it into the NO_BUENO_MICRO folder.
+while ( $i <= $j )
+	set del = `awk "FNR == $i {print}" Files_to_delete_ccc_criteria.txt | xargs echo` #Extracts the name (string) of the i-th line in the file specified.
+	set DEL=$del:r
+	#gzip -f9  $DEL.log
+	#gzip -f9  $DEL.dat
+	#gzip -f9  $DEL.ctf
+	echo "$DEL" > use_me #change rootname back to its original form.
+	sed -i 's/\_gctf$//' use_me #REPLACES "_gctf" with a null character
+	set name = `awk "FNR==1 {print}" use_me | xargs echo` #sets a value to the varaiable name
+	mv  $name.mrc NO_BUENO_MICRO/$name.mrc   #MOVES THE MICROGRAPHS THAT DID NOT PASS THE CRITERIA
+	sed -i "/$name.mrc/d" micrographs_all_gctf.star #deletes the line containing the Micrographs name, in this case its always the first line.
+	@ i++
+end 
+rm use_me

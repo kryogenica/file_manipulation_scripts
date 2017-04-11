@@ -1,0 +1,49 @@
+#!/bin/csh -f
+#Change value inside echo "600"
+set max_defocus_diff = `echo "600" | awk '{print $1}'` #Max diference of Defocus U and V in nanometers.
+rm All_values.data
+rm Name_of_files_in_order.txt
+rm Files_to_delete_ccc_criteria.txt
+foreach file (*gctf.log)
+        set b=$file:r
+        awk '/Defocus_U/ {p=1;next}p' $b.log > $b.tmp && mv $b.tmp $b.dat
+        awk -F 'Final' '{print $1}' $b.dat > $b.tmp && mv $b.tmp $b.dat
+        sed -i 's/^ *//' $b.dat
+	sed -i 's/Resolution limit estimated by EPA: RES_LIMIT //' $b.dat
+	sed -i 's/Estimated Bfactor: B_FACTOR  //' $b.dat
+	set RESOLUTION=`head -3 $b.dat | tail -1 | xargs echo`
+	set B_FACTOR=`head -4 $b.dat | tail -1 | xargs echo`
+	sed -i '2,5d' $b.dat
+	awk -F, '{$(NF+1)=++i;}1' OFS="  $RESOLUTION" $b.dat > $b.tmp && mv $b.tmp $b.dat
+	awk -F, '{$(NF+1)=++i;}1' OFS="  $B_FACTOR" $b.dat > $b.tmp && mv $b.tmp $b.dat
+end
+
+set j=0
+
+foreach file (*.dat)
+        set b=$file
+        head -1 $b >> All_values.data
+	echo "$b" >> Name_of_files_in_order.txt
+	@ j++
+end
+
+awk -F"**" '$1=$1' OFS="\t" All_values.data
+set column1='$1' #Access column 1 to obatin the Defocuse U values 
+set column2='$2' #Access column 2 to obatin the Defocuse V values
+set k=1 #Variable to iterate through while loop
+
+while ( $k <= $j )
+        set Defocus_U = `awk "FNR==$k {print $column1}" All_values.data | xargs echo` #Extracts Defocus_U value of the k-th micrograph
+        
+	set Defocus_V = `awk "FNR==$k {print $column2}" All_values.data | xargs echo` #Extracts Defocus_V value of the k-th micrograph
+
+	set dif = `echo "$Defocus_U $Defocus_V" | awk '{print sqrt(($1 - $2)^2)}'` #Calculates the absolute difference between Defocus U and V
+        
+	set var1 = `echo "$max_defocus_diff $dif" | awk '{print ($2 < $1)}'` #1 if dif is lower than 600 (max defocus diff) 0 otherwise
+        
+	if ( "$var1" == 0 ) then
+		set delete = `awk "FNR==$k {print}" Name_of_files_in_order.txt | xargs echo` #Saves the name of micrograph if bigger than 600
+		echo "$delete">>Files_to_delete_Defocus_Diff_criteria.txt #List of micrographs to delete based on defocus diff criteria
+	endif
+	@ k++	#Adds one to k
+end

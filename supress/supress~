@@ -1,0 +1,19 @@
+#!/bin/csh -f
+mkdir NO_BUENO_MICRO
+set j = `wc -l Files_to_delete_ccc_criteria.txt | grep -Eo '[0-9]*' `
+set i=1
+echo "$j"
+while ( $i <= $j )
+	set del = `awk "FNR == $i {print}" Files_to_delete_ccc_criteria.txt | xargs echo`
+	set DEL=$del:r
+	#gzip -f9  $DEL.log
+	#gzip -f9  $DEL.dat
+	#gzip -f9  $DEL.ctf
+	echo "$DEL" > use_me
+	sed -i 's/\_gctf$//' use_me
+	set name = `awk "FNR==1 {print}" use_me | xargs echo`
+	mv  $name.mrc NO_BUENO_MICRO/$name.mrc
+	sed -i "/$name.mrc/d" micrographs_all_gctf.star
+	@ i++
+
+end 

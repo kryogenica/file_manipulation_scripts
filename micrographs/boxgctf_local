@@ -1,0 +1,73 @@
+#!/bin/csh -f
+rm which_to_keep.txt
+rksystem2
+/opt/EM_suite/Gctf_v0.50/bin/Gctf-v0.50_sm_20_cu6.5_x86_64 --apix 1.54 --kV 200 --cs 2.0 --defL 10000 --defH 50000 --astm 500 --bfac 50 --resL 60 --defS 100 --ac 0.1 --boxsize 512 --do_local_refine 1 --boxsuffix .box *.mrc
+
+
+foreach file (*gctf.log)
+	set b=$file:r
+	awk '/Defocus_U/ {p=1;next}p' $b.log > $b.tmp && mv $b.tmp $b.fuse
+	awk -F 'Final' '{print $1}' $b.fuse > $b.tmp && mv $b.tmp $b.fuse
+	sed -i '2,$d' $b.fuse 
+	awk '{dif=sqrt(($4)^2)}END{print dif}' $b.fuse > $b.tmp && mv $b.tmp $b.fuse
+end
+rename 's/\.ctf$/_gctf.512/' *
+rename 's/\_gctf.log$/_gctf.5/' *
+
+mv micrographs_all_gctf.star micrographs_all_gctf.5
+#sed -i '1,16d' micrographs_all_gctf.5
+
+/opt/EM_suite/Gctf_v0.50/bin/Gctf-v0.50_sm_20_cu6.5_x86_64 --apix 1.54 --kV 200 --cs 2.0 --defL 10000 --defH 50000 --astm 500 --bfac 50 --resL 60 --defS 100 --ac 0.1 --boxsize 256 --do_local_refine 1 --boxsuffix .box *.mrc
+
+foreach file (*gctf.log)
+        set b=$file:r
+        awk '/Defocus_U/ {p=1;next}p' $b.log > $b.tmp && mv $b.tmp $b.suse
+        awk -F 'Final' '{print $1}' $b.suse > $b.tmp && mv $b.tmp $b.suse
+        sed -i '2,$d' $b.suse
+        awk '{dif=sqrt(($4)^2)}END{print dif}' $b.suse > $b.tmp && mv $b.tmp $b.suse
+end
+rename 's/\.ctf$/_gctf.256/' *
+rename 's/\_gctf.log$/_gctf.2/' *
+
+mv micrographs_all_gctf.star micrographs_all_gctf.2
+#sed -i '1,16d' micrographs_all_gctf.2
+set i=17
+foreach file (*.fuse)
+	set b=$file
+	set name=$file:r
+	set el_fin=`echo "$b" | tail -c 5`
+	echo "$name"	
+	
+	if ( $el_fin == "fuse" ) then
+		set value1=`head -n 1 $name.fuse | xargs echo ` 
+		set value2=`head -n 1 $name.suse | xargs echo `
+		set var = `echo "$value1 $value2" | awk '{print ($2 >= $1)}'`
+		
+		
+		echo "$var"
+		if ( "$var" == 0 ) then
+			mv $name.512 $name.ctf
+			awk "FNR==$i {print}" micrographs_all_gctf.5 >> which_to_keep.txt
+			mv $name.5 $name.log
+		else
+			awk "FNR==$i {print}" micrographs_all_gctf.2 >> which_to_keep.txt
+			mv $name.256 $name.ctf
+			mv $name.2 $name.log
+		endif
+		@ i++
+	endif
+	
+	
+end
+rename 's/\_gctf.ctf$/.ctf/' *.ctf
+cat micrographs_all_gctf.header which_to_keep.txt > micrographs_all_gctf.star
+
+rm *.256
+rm *.512
+rm *.2
+rm *.5
+rm *.suse
+rm *.fuse
+echo "DONE!!!"
+
+
